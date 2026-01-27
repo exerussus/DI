@@ -1,5 +1,5 @@
 {
-  "name": "Exerussus.DI",
+  "name": "com.exerussus.di",
   "version": "1.0.0",
   "displayName": "DI",
   "description": "Простая реализация DI контейнеров.",
