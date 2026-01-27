@@ -1,0 +1,20 @@
+{
+  "name": "Exerussus.DI",
+  "version": "1.0.0",
+  "displayName": "DI",
+  "description": "Простая реализация DI контейнеров.",
+  "unity": "2020.3",
+  "dependencies": {},
+  "keywords": [
+    "exerussus",
+    "di"
+  ],
+  "author": {
+    "name": "Exerussus",
+    "email": "solovyov.production@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/exerussus/DI.git"
+  }
+}
