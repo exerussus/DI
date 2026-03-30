@@ -162,7 +162,7 @@ namespace Exerussus.DI
                     {
 #if DEBUG
                         throw new Exception(
-                            $"Ошибка инъекции данных в \"{CleanTypeName(target.GetType())}\" - тип поля \"{fi.Name}\" отсутствует в контейнере зависимостей.");
+                            $"Ошибка инъекции данных в \"{CleanTypeName(target.GetType())}\" - тип {fi.FieldType.Name} поля \"{fi.Name}\" отсутствует в контейнере зависимостей.");
 #endif
                     }
                 }
