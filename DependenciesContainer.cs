@@ -9,97 +9,57 @@ namespace Exerussus.DI
 {
     public class DependenciesContainer
     {
-        public DependenciesContainer() { }
+        private const BindingFlags MemberFlags = BindingFlags.Public | BindingFlags.NonPublic
+                                                 | BindingFlags.Instance | BindingFlags.DeclaredOnly;
 
-        public DependenciesContainer(DependenciesContainer container)
-        {
-            foreach (var (key, value) in container._refs) _refs[key] = value;
-        }
+        // Кэш рефлексии. Сбрасывается на reload домена вместе со статиками.
+        private static readonly Dictionary<Type, MemberInfo[]> InjectCache = new();
+        private static readonly Dictionary<Type, MemberInfo[]> ProvideCache = new();
 
         private readonly Dictionary<Type, object> _refs = new();
 
-        private static readonly Exception ServiceGetException = new($"[DependenciesContainer] Целевой объект отсутствует в коллекции. Референс не был добавлен?");
-        private static readonly Exception ServiceCastException = new($"[DependenciesContainer] Невозможно скастить найденный объект в необходимый тип.");
-        private static readonly Type InjectAttrType = typeof(InjectAttribute);
-        private static readonly Type ProvideAttrType = typeof(ProvideAttribute);
+        public DependenciesContainer() { }
 
-        public void Clear()
+        public DependenciesContainer(DependenciesContainer other)
         {
-            _refs.Clear();
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            foreach (var (key, value) in other._refs) _refs[key] = value;
         }
 
+        // ------------ Регистрация ------------
+
+        /// <summary> Регистрирует объект по его фактическому типу. </summary>
+        public DependenciesContainer Add(object reference)
+        {
+            if (reference == null) throw new ArgumentNullException(nameof(reference));
+            RegisterInternal(reference.GetType(), reference);
+            return this;
+        }
+
+        /// <summary> Регистрирует объект по явно указанному типу (например, по интерфейсу). </summary>
+        public DependenciesContainer Add<TKey>(TKey reference)
+        {
+            if (reference == null) throw new ArgumentNullException(nameof(reference));
+            RegisterInternal(typeof(TKey), reference);
+            return this;
+        }
+
+        /// <summary> Регистрирует пачку объектов по их фактическим типам. </summary>
         public DependenciesContainer Add(params object[] refs)
         {
-            if (refs is not { Length: > 0 })
-            {
-                Debug.LogError($"DependenciesContainer ERROR | Параметры содержат null.");
-                return this;
-            }
+            if (refs == null || refs.Length == 0) return this;
 
             for (int i = 0; i < refs.Length; i++)
             {
-                ref var refObject = ref refs[i];
-
-                var type = refObject.GetType();
-
-                if (_refs.ContainsKey(type))
+                var refObj = refs[i];
+                if (refObj == null)
                 {
-                    Debug.LogWarning($"DependenciesContainer WARNING | Тип {type} уже был добавлен. Референс будет перезаписан.");
+                    Debug.LogError($"[DependenciesContainer] Аргумент [{i}] равен null, пропускаем.");
+                    continue;
                 }
-
-                _refs[type] = refObject;
+                RegisterInternal(refObj.GetType(), refObj);
             }
-
             return this;
-        }
-
-        public DependenciesContainer AddRange(object[] refs)
-        {
-            if (refs is not { Length: > 0 })
-            {
-                Debug.LogError($"DependenciesContainer ERROR | Параметры содержат null.");
-                return this;
-            }
-
-            for (int i = 0; i < refs.Length; i++)
-            {
-                ref var refObject = ref refs[i];
-
-                var type = refObject.GetType();
-
-                if (_refs.ContainsKey(type))
-                {
-                    Debug.LogWarning($"DependenciesContainer WARNING | Тип {type} уже был добавлен. Референс будет перезаписан.");
-                }
-
-                _refs[type] = refObject;
-            }
-
-            return this;
-        }
-
-        public object[] GetAllRefs()
-        {
-            return _refs.Values.ToArray();
-        }
-
-        public T Get<T>()
-        {
-            var type = typeof(T);
-
-            if (!_refs.TryGetValue(type, out var serviceRaw))
-            {
-                Debug.LogError($"{ServiceGetException.Message}\nType: {type}");
-                throw ServiceGetException;
-            }
-
-            if (serviceRaw is not T service)
-            {
-                Debug.LogError($"{ServiceCastException.Message}\nObject type: {serviceRaw.GetType()}\nTarget type: {type}");
-                throw ServiceCastException;
-            }
-
-            return service;
         }
 
         public DependenciesContainer Remove<T>()
@@ -110,171 +70,237 @@ namespace Exerussus.DI
 
         public DependenciesContainer Remove(Type type)
         {
+            if (type == null) throw new ArgumentNullException(nameof(type));
             _refs.Remove(type);
             return this;
         }
 
-        public DependenciesContainer Remove(object obj)
+        public void Clear() => _refs.Clear();
+
+        public void Merge(DependenciesContainer other)
         {
-            _refs.Remove(obj.GetType());
-            return this;
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            foreach (var (key, value) in other._refs) _refs[key] = value;
+        }
+
+        private void RegisterInternal(Type type, object value)
+        {
+            if (_refs.ContainsKey(type))
+                Debug.LogWarning($"[DependenciesContainer] Тип {type} уже зарегистрирован, ссылка будет перезаписана.");
+            _refs[type] = value;
+        }
+
+        // ------------ Поиск ------------
+
+        public T Get<T>()
+        {
+            var type = typeof(T);
+            if (!_refs.TryGetValue(type, out var raw))
+                throw new InvalidOperationException(
+                    $"[DependenciesContainer] Тип {type} не найден в контейнере. Был ли он добавлен?");
+
+            if (raw is not T value)
+                throw new InvalidCastException(
+                    $"[DependenciesContainer] Объект типа {raw.GetType()} нельзя привести к {type}.");
+
+            return value;
         }
 
         public bool TryGet<T>(out T value)
         {
-            if (_refs.TryGetValue(typeof(T), out var obj))
+            if (_refs.TryGetValue(typeof(T), out var obj) && obj is T typed)
             {
-                value = (T)obj;
-                return value != null;
+                value = typed;
+                return true;
             }
-
             value = default;
             return false;
         }
 
-        public void Merge(DependenciesContainer otherContainer)
-        {
-            foreach (var reference in otherContainer._refs.Values) Add(reference);
-        }
+        public bool Has<T>() => _refs.ContainsKey(typeof(T));
+        public bool Has(Type type) => type != null && _refs.ContainsKey(type);
 
-        private bool TryGet(Type type, out object value)
-        {
-            return _refs.TryGetValue(type, out value);
-        }
+        public object[] GetAllRefs() => _refs.Values.ToArray();
 
-        public void TryInjectFields(object target, DependenciesContainer otherContainer = null)
+        private bool TryGet(Type type, out object value) => _refs.TryGetValue(type, out value);
+
+        // ------------ Inject / Provide ------------
+
+        public void TryInjectFields(object target, DependenciesContainer fallback = null)
         {
-            foreach (var fi in target.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            if (target == null) throw new ArgumentNullException(nameof(target));
+
+            foreach (var member in GetInjectMembers(target.GetType()))
             {
-                if (fi.IsStatic) continue;
+                var memberType = GetMemberType(member);
 
-                if (Attribute.IsDefined(fi, InjectAttrType))
+                if (TryGet(memberType, out var obj) ||
+                    (fallback != null && fallback.TryGet(memberType, out obj)))
                 {
-                    if (TryGet(fi.FieldType, out var injectObj))
-                    {
-                        fi.SetValue(target, injectObj);
-                    }
-                    else if (otherContainer != null && otherContainer.TryGet(fi.FieldType, out injectObj))
-                    {
-                        fi.SetValue(target, injectObj);
-                    }
-                    else
-                    {
-#if DEBUG
-                        throw new Exception(
-                            $"Ошибка инъекции данных в \"{CleanTypeName(target.GetType())}\" - тип {fi.FieldType.Name} поля \"{fi.Name}\" отсутствует в контейнере зависимостей.");
-#endif
-                    }
+                    SetMemberValue(member, target, obj);
+                    continue;
                 }
+
+                ThrowInjectMissing(target, member, memberType);
             }
         }
 
-        public void TryInjectFields(object target, Func<Type, (bool isError, object instance)> onInstanceNotExist, DependenciesContainer otherContainer = null)
+        public void TryInjectFields(object target,
+            Func<Type, (bool isError, object instance)> onMissing,
+            DependenciesContainer fallback = null)
         {
-            foreach (var fi in target.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            if (onMissing == null) throw new ArgumentNullException(nameof(onMissing));
+
+            foreach (var member in GetInjectMembers(target.GetType()))
             {
-                if (fi.IsStatic) continue;
+                var memberType = GetMemberType(member);
 
-                if (Attribute.IsDefined(fi, InjectAttrType))
+                if (TryGet(memberType, out var obj) ||
+                    (fallback != null && fallback.TryGet(memberType, out obj)))
                 {
-                    if (TryGet(fi.FieldType, out var injectObj))
-                    {
-                        fi.SetValue(target, injectObj);
-                    }
-                    else if (otherContainer != null && otherContainer.TryGet(fi.FieldType, out injectObj))
-                    {
-                        fi.SetValue(target, injectObj);
-                    }
-                    else
-                    {
-                        var (isError, instance) = onInstanceNotExist.Invoke(fi.FieldType);
+                    SetMemberValue(member, target, obj);
+                    continue;
+                }
 
-                        if (isError)
-                        {
-#if DEBUG
-                            throw new Exception(
-                                $"Ошибка инъекции данных в \"{CleanTypeName(target.GetType())}\" - тип {fi.FieldType.Name} поля \"{fi.Name}\" отсутствует в контейнере зависимостей.");
-#endif
-                        }
+                var (isError, instance) = onMissing(memberType);
+                if (isError) ThrowInjectMissing(target, member, memberType);
 
-                        if (instance != null)
-                        {
-                            fi.SetValue(target, instance);
-                            _refs[fi.FieldType] = instance;
-                        }
-                    }
+                if (instance != null)
+                {
+                    SetMemberValue(member, target, instance);
+                    _refs[memberType] = instance;
                 }
             }
         }
 
         public void TryProvideFields(object target)
         {
-            foreach (var fi in target.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            if (target == null) throw new ArgumentNullException(nameof(target));
+
+            foreach (var member in GetProvideMembers(target.GetType()))
             {
-                if (fi.IsStatic) continue;
-
-                if (!Attribute.IsDefined(fi, ProvideAttrType)) continue;
-
-                var value = fi.GetValue(target);
+                var value = GetMemberValue(member, target);
+                var memberType = GetMemberType(member);
 
                 if (value == null)
-                {
-#if DEBUG
-                    throw new Exception($"Provide ERROR | Поле \"{fi.Name}\" в \"{CleanTypeName(target.GetType())}\" помечено [Provide], но содержит null.");
-#else
-            continue;
-#endif
-                }
+                    throw new InvalidOperationException(
+                        $"[DependenciesContainer] {CleanTypeName(target.GetType())}.\"{member.Name}\" " +
+                        $"помечено [Provide], но содержит null.");
 
-                var type = fi.FieldType;
+                if (_refs.ContainsKey(memberType))
+                    Debug.LogWarning($"[DependenciesContainer] Тип {memberType} уже в контейнере, [Provide] перезапишет значение.");
 
-                if (_refs.ContainsKey(type))
-                {
-                    Debug.LogWarning($"DependenciesContainer WARNING | Тип {type} уже существует. Provide перезапишет значение.");
-                }
-
-                _refs[type] = value;
+                _refs[memberType] = value;
             }
         }
 
-        public void TryInvokeExceptionOnProvideFields(object target, string onExistExceptionMessage)
+        /// <summary> Бросает исключение, если у target есть [Provide]-поле, чей тип уже зарегистрирован в контейнере. </summary>
+        public void ThrowIfHasProvideFields(object target, string message)
         {
-            foreach (var fi in target.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            if (target == null) throw new ArgumentNullException(nameof(target));
+
+            foreach (var member in GetProvideMembers(target.GetType()))
             {
-                if (fi.IsStatic) continue;
-
-                if (!Attribute.IsDefined(fi, ProvideAttrType)) continue;
-
-                var value = fi.GetValue(target);
-
-                throw new Exception($"DependenciesContainer.TryInvokeExceptionOnProvideFields EXCEPTION | {onExistExceptionMessage} \nОбъект: {target}\nПоле: {fi.Name}");
+                var memberType = GetMemberType(member);
+                if (_refs.ContainsKey(memberType))
+                {
+                    throw new InvalidOperationException(
+                        $"[DependenciesContainer] {message}\n" +
+                        $"Объект: {CleanTypeName(target.GetType())}\n" +
+                        $"Поле: {member.Name}\n" +
+                        $"Тип: {memberType}");
+                }
             }
         }
 
-#if DEBUG || UNITY_EDITOR
+        // ------------ Кэш рефлексии ------------
+
+        private static MemberInfo[] GetInjectMembers(Type type) =>
+            GetCachedMembers(type, InjectCache, typeof(InjectAttribute));
+
+        private static MemberInfo[] GetProvideMembers(Type type) =>
+            GetCachedMembers(type, ProvideCache, typeof(ProvideAttribute));
+
+        private static MemberInfo[] GetCachedMembers(Type type, Dictionary<Type, MemberInfo[]> cache, Type attributeType)
+        {
+            if (cache.TryGetValue(type, out var cached)) return cached;
+
+            var result = new List<MemberInfo>();
+            // Идём вверх по иерархии: без этого приватные поля базовых классов теряются.
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+            {
+                foreach (var fi in t.GetFields(MemberFlags))
+                {
+                    if (Attribute.IsDefined(fi, attributeType)) result.Add(fi);
+                }
+
+                foreach (var pi in t.GetProperties(MemberFlags))
+                {
+                    if (pi.GetIndexParameters().Length > 0) continue; // индексеры пропускаем
+                    if (Attribute.IsDefined(pi, attributeType)) result.Add(pi);
+                }
+            }
+
+            var array = result.ToArray();
+            cache[type] = array;
+            return array;
+        }
+
+        // ------------ Хелперы по членам ------------
+
+        private static Type GetMemberType(MemberInfo member) => member switch
+        {
+            FieldInfo fi => fi.FieldType,
+            PropertyInfo pi => pi.PropertyType,
+            _ => throw new InvalidOperationException($"Unsupported member kind: {member.MemberType}")
+        };
+
+        private static void SetMemberValue(MemberInfo member, object target, object value)
+        {
+            switch (member)
+            {
+                case FieldInfo fi:
+                    fi.SetValue(target, value);
+                    break;
+                case PropertyInfo pi:
+                    if (!pi.CanWrite)
+                        throw new InvalidOperationException(
+                            $"[DependenciesContainer] Свойство {pi.DeclaringType?.Name}.{pi.Name} " +
+                            $"помечено [Inject], но не имеет сеттера.");
+                    pi.SetValue(target, value);
+                    break;
+            }
+        }
+
+        private static object GetMemberValue(MemberInfo member, object target) => member switch
+        {
+            FieldInfo fi => fi.GetValue(target),
+            PropertyInfo pi => pi.GetValue(target),
+            _ => null
+        };
+
+        private static void ThrowInjectMissing(object target, MemberInfo member, Type missingType)
+        {
+            throw new InvalidOperationException(
+                $"[DependenciesContainer] Ошибка инъекции в {CleanTypeName(target.GetType())}: " +
+                $"тип {missingType.Name} (\"{member.Name}\") отсутствует в контейнере зависимостей.");
+        }
+
         private static string CleanTypeName(Type type)
         {
-            string name;
-            if (!type.IsGenericType) name = type.Name;
-            else
+            if (!type.IsGenericType) return type.Name;
+
+            var sb = new StringBuilder();
+            foreach (var arg in type.GetGenericArguments())
             {
-                var constraints = new StringBuilder();
-                foreach (var constraint in type.GetGenericArguments())
-                {
-                    if (constraints.Length > 0) constraints.Append(", ");
-
-                    constraints.Append(CleanTypeName(constraint));
-                }
-
-                var genericIndex = type.Name.LastIndexOf("`", StringComparison.Ordinal);
-                var typeName = genericIndex == -1
-                    ? type.Name
-                    : type.Name.Substring(0, genericIndex);
-                name = $"{typeName}<{constraints}>";
+                if (sb.Length > 0) sb.Append(", ");
+                sb.Append(CleanTypeName(arg));
             }
 
-            return name;
+            var genericIndex = type.Name.LastIndexOf('`');
+            var typeName = genericIndex == -1 ? type.Name : type.Name.Substring(0, genericIndex);
+            return $"{typeName}<{sb}>";
         }
-#endif
     }
 }
