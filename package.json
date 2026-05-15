@@ -1,6 +1,6 @@
 {
   "name": "com.exerussus.di",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "displayName": "DI",
   "description": "Простая реализация DI контейнеров.",
   "unity": "2020.3",

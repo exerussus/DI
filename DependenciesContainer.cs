@@ -37,28 +37,10 @@ namespace Exerussus.DI
         }
 
         /// <summary> Регистрирует объект по явно указанному типу (например, по интерфейсу). </summary>
-        public DependenciesContainer Add<TKey>(TKey reference)
+        public DependenciesContainer Add(Type type, object reference)
         {
             if (reference == null) throw new ArgumentNullException(nameof(reference));
-            RegisterInternal(typeof(TKey), reference);
-            return this;
-        }
-
-        /// <summary> Регистрирует пачку объектов по их фактическим типам. </summary>
-        public DependenciesContainer Add(params object[] refs)
-        {
-            if (refs == null || refs.Length == 0) return this;
-
-            for (int i = 0; i < refs.Length; i++)
-            {
-                var refObj = refs[i];
-                if (refObj == null)
-                {
-                    Debug.LogError($"[DependenciesContainer] Аргумент [{i}] равен null, пропускаем.");
-                    continue;
-                }
-                RegisterInternal(refObj.GetType(), refObj);
-            }
+            RegisterInternal(type, reference);
             return this;
         }
 

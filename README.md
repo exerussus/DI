@@ -17,9 +17,8 @@ https://github.com/exerussus/DI.git
 ```csharp
 var container = new DependenciesContainer();
 
-container.Add(new PlayerService());            // по фактическому типу
-container.Add<IPlayerService>(new PlayerService()); // по интерфейсу
-container.Add(serviceA, serviceB, serviceC);   // пачкой
+container.Add(new PlayerService());                          // по фактическому типу
+container.Add(typeof(IPlayerService), new PlayerService());  // по интерфейсу / базовому типу
 ```
 
 ### Инъекция
@@ -64,7 +63,7 @@ container.TryProvideFields(new Bootstrap());
 
 | Метод | Назначение |
 |---|---|
-| `Add(obj)` / `Add<T>(obj)` / `Add(params)` | Регистрация |
+| `Add(obj)` / `Add(Type, obj)` | Регистрация |
 | `Remove<T>()` / `Remove(Type)` | Удаление |
 | `Get<T>()` | Получение, исключение при отсутствии |
 | `TryGet<T>(out value)` | Безопасное получение |
