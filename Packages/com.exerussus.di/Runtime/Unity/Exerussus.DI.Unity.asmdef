@@ -1,0 +1,16 @@
+{
+    "name": "Exerussus.DI.Unity",
+    "rootNamespace": "Exerussus.DI",
+    "references": [
+        "Exerussus.DI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

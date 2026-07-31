@@ -1,6 +1,6 @@
 {
-    "name": "Exerussus.Di",
-    "rootNamespace": "",
+    "name": "Exerussus.DI",
+    "rootNamespace": "Exerussus.DI",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -10,5 +10,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": false
+    "noEngineReferences": true
 }

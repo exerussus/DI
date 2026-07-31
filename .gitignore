@@ -1,0 +1,35 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+[Mm]emoryCaptures/
+sysinfo.txt
+crashlytics-build.properties
+
+# IDE
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.sln
+*.unityproj
+*.user
+*.pidb
+*.booproj
+*.suo
+*.svd
+*.userprefs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Харнесс тестов
+Tests/bin/
+Tests/obj/
+
+# .meta не игнорируем: без них Unity теряет GUID пакета

@@ -1,13 +1,15 @@
 {
   "name": "com.exerussus.di",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "displayName": "DI",
-  "description": "Простая реализация DI контейнеров.",
-  "unity": "2020.3",
+  "description": "DI-контейнер для Unity: инъекция по атрибутам, скоупы, потокобезопасный контейнер с ожиданием регистраций.",
+  "unity": "2021.3",
   "dependencies": {},
   "keywords": [
     "exerussus",
-    "di"
+    "di",
+    "injection",
+    "async"
   ],
   "author": {
     "name": "Exerussus",

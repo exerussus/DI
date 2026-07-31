@@ -1,0 +1,26 @@
+{
+    "name": "Exerussus.DI.Async",
+    "rootNamespace": "Exerussus.DI",
+    "references": [
+        "Exerussus.DI",
+        "Exerussus.DI.Unity",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "EXERUSSUS_DI_UNITASK"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.unitask",
+            "expression": "2.0.0",
+            "define": "EXERUSSUS_DI_UNITASK"
+        }
+    ],
+    "noEngineReferences": false
+}
