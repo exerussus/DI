@@ -1,6 +1,6 @@
 {
   "name": "com.exerussus.di",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "displayName": "DI",
   "description": "DI-контейнер для Unity: инъекция по атрибутам, скоупы, потокобезопасный контейнер с ожиданием регистраций.",
   "unity": "2021.3",

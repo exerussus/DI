@@ -63,11 +63,9 @@ namespace Exerussus.DI
 
                     if (field.IsStatic) throw StaticMemberError(attributeName, current, field.Name);
 
-                    // Запись в readonly-поле через рефлексию не гарантируется на IL2CPP/AOT.
-                    if (needWrite && field.IsInitOnly)
-                        throw new InvalidOperationException(
-                            $"[DI] {TypeNameUtility.PrettyName(current)}.{field.Name} помечено {attributeName}, " +
-                            "но объявлено readonly. Уберите readonly.");
+                    // readonly на [Inject]-поле — ожидаемый и рекомендуемый стиль: контейнер пишет
+                    // через рефлексию, а компилятор запрещает перезапись из пользовательского кода.
+                    // Статические initonly отсекаются проверкой выше — там рефлексия действительно запрещена.
 
                     (points ??= new List<InjectionPoint>()).Add(new InjectionPoint(field));
                 }

@@ -176,6 +176,18 @@ namespace Exerussus.DI.Tests
             Check.Equal(typeof(IServiceB), missing.MissingType, "Должен быть указан недостающий тип");
         }
 
+        public static void Test_Inject_ReadonlyField_Injected()
+        {
+            var container = new DependenciesContainer();
+            var service = new ServiceA();
+            container.Add<IServiceA>(service);
+
+            var target = new ReadonlyFieldTarget();
+            container.Inject(target);
+
+            Check.Same(service, target.Service, "readonly-поле должно заполняться");
+        }
+
         // ---------- Неподдерживаемые члены ----------
 
         public static void Test_Inject_IntoValueType_Throws()
@@ -185,15 +197,6 @@ namespace Exerussus.DI.Tests
 
             Check.Throws<ArgumentException>(() => container.Inject(new StructTarget()),
                 "Инъекция в value-type должна отклоняться");
-        }
-
-        public static void Test_Inject_ReadonlyField_Throws()
-        {
-            var container = new DependenciesContainer();
-            container.Add<IServiceA>(new ServiceA());
-
-            Check.Throws<InvalidOperationException>(() => container.Inject(new ReadonlyFieldTarget()),
-                "readonly-поле должно отклоняться");
         }
 
         public static void Test_Inject_StaticField_Throws()
